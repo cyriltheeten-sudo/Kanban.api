@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Kanban.Api.Data;
 using Kanban.Api.Models;
@@ -7,6 +8,7 @@ namespace Kanban.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class BoardsController : ControllerBase
 {
     private readonly AppDbContext _context;
