@@ -39,7 +39,7 @@ public class CardsController : ControllerBase
         return CreatedAtAction(nameof(Create), new { id = card.Id }, card);
     }
 
-    // DELETE /api/cards/5
+    // DELETE /api/cards/{id}
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
@@ -49,6 +49,22 @@ public class CardsController : ControllerBase
         _context.Cards.Remove(card);
         await _context.SaveChangesAsync();
         return NoContent();   // 204 : succès, rien à renvoyer
+    }
+
+    public record UpdateCardRequest(string Title, string? Description);
+
+    // PUT /api/cards/{id}
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, UpdateCardRequest request)
+    {
+        var card = await _context.Cards.FindAsync(id);
+        if (card is null) return NotFound();
+
+        card.Title = request.Title;
+        card.Description = request.Description;
+
+        await _context.SaveChangesAsync();
+        return NoContent();
     }
 }
 

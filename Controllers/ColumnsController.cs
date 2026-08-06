@@ -39,4 +39,19 @@ public class ColumnsController : ControllerBase
 
         return CreatedAtAction(nameof(Create), new { id = column.Id }, column);
     }
+
+    // DELETE /api/columns/{id}
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var column = await _context.Columns
+            .Include(c => c.Cards)      // on charge les cartes pour qu'EF les supprime avec
+            .FirstOrDefaultAsync(c => c.Id == id);
+
+        if (column is null) return NotFound();
+
+        _context.Columns.Remove(column);
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
 }
