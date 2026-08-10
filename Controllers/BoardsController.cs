@@ -33,4 +33,18 @@ public class BoardsController : ControllerBase
         if (board is null) return NotFound();
         return board;
     }
+
+    public record UpdateBoardRequest(string Name);
+
+    // PUT /api/boards/{id}
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, UpdateBoardRequest request)
+    {
+        var board = await _context.Boards.FindAsync(id);
+        if (board is null) return NotFound();
+
+        board.Name = request.Name;
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
 }
