@@ -66,5 +66,34 @@ public class CardsController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
+
+    public record MoveCardRequest(int ColumnId, int Order);
+
+    // PUT /api/cards/{id}/move
+    [HttpPut("{id}/move")]
+    public async Task<IActionResult> Move(int id, MoveCardRequest request)
+    {
+        var card = await _context.Cards.FindAsync(id);
+        if (card is null) return NotFound();
+
+        // 1. Close the gap in the source column: cards after it shift up by one
+        var sourceCards = await _context.Cards
+            .Where(c => c.ColumnId == card.ColumnId && c.Order > card.Order)
+            .ToListAsync();
+        foreach (var c in sourceCards) c.Order--;
+
+        // 2. Make room in the target column: cards at or after the target position shift down by one
+        var targetCards = await _context.Cards
+            .Where(c => c.ColumnId == request.ColumnId && c.Order >= request.Order)
+            .ToListAsync();
+        foreach (var c in targetCards) c.Order++;
+
+        // 3. Place the card at its new column and position
+        card.ColumnId = request.ColumnId;
+        card.Order = request.Order;
+
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
 }
 

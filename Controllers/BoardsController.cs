@@ -26,8 +26,8 @@ public class BoardsController : ControllerBase
     public async Task<ActionResult<Board>> GetById(int id)
     {
         var board = await _context.Boards
-            .Include(b => b.Columns)          // charge les colonnes
-                .ThenInclude(c => c.Cards)    // et pour chaque colonne, ses cartes
+            .Include(b => b.Columns.OrderBy(c => c.Order))          // colonnes triées
+                .ThenInclude(c => c.Cards.OrderBy(card => card.Order))  // cartes triées
             .FirstOrDefaultAsync(b => b.Id == id);
 
         if (board is null) return NotFound();
