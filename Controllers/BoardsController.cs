@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Kanban.Api.Data;
 using Kanban.Api.Models;
+using Microsoft.AspNetCore.SignalR;
+using Kanban.Api.Hubs;
+
 
 namespace Kanban.Api.Controllers;
 
@@ -12,7 +15,23 @@ namespace Kanban.Api.Controllers;
 public class BoardsController : ControllerBase
 {
     private readonly AppDbContext _context;
-    public BoardsController(AppDbContext context) => _context = context;
+    private readonly IHubContext<KanbanHub> _hub;
+    public BoardsController(AppDbContext context, IHubContext<KanbanHub> hub)
+    {
+        _context = context;
+        _hub = hub;
+    }
+
+    private async Task NotifyBoardChanged(int boardId)
+    {
+        var senderConnectionId = Request.Headers["X-Connection-Id"].FirstOrDefault();
+
+        if (senderConnectionId is not null)
+            await _hub.Clients.GroupExcept($"board-{boardId}", senderConnectionId)
+                .SendAsync("BoardChanged");
+        else
+            await _hub.Clients.Group($"board-{boardId}").SendAsync("BoardChanged");
+    }
 
     // GET /api/boards → tous les boards (sans le détail)
     [HttpGet]
@@ -45,6 +64,7 @@ public class BoardsController : ControllerBase
 
         board.Name = request.Name;
         await _context.SaveChangesAsync();
+        await NotifyBoardChanged(id);
         return NoContent();
     }
 }

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Kanban.Api.Data;
 using Kanban.Api.Models;
+using Microsoft.AspNetCore.SignalR;
+using Kanban.Api.Hubs;
 
 namespace Kanban.Api.Controllers;
 
@@ -15,7 +17,26 @@ public record CreateCardRequest(string Title, int ColumnId);
 public class CardsController : ControllerBase
 {
     private readonly AppDbContext _context;
-    public CardsController(AppDbContext context) => _context = context;
+    private readonly IHubContext<KanbanHub> _hub;
+    public CardsController(AppDbContext context, IHubContext<KanbanHub> hub)
+    {
+        _context = context;
+        _hub = hub;
+    }
+
+    private async Task NotifyBoardChanged(int boardId)
+    {
+        var senderConnectionId = Request.Headers["X-Connection-Id"].FirstOrDefault();
+
+        if (senderConnectionId is not null)
+            await _hub.Clients.GroupExcept($"board-{boardId}", senderConnectionId)
+                .SendAsync("BoardChanged");
+        else
+            await _hub.Clients.Group($"board-{boardId}").SendAsync("BoardChanged");
+    }
+
+    private Task<int> GetBoardIdFromColumn(int columnId) =>
+    _context.Columns.Where(c => c.Id == columnId).Select(c => c.BoardId).FirstAsync();
 
     // POST /api/cards
     [HttpPost]
@@ -35,7 +56,7 @@ public class CardsController : ControllerBase
 
         _context.Cards.Add(card);
         await _context.SaveChangesAsync();
-
+        await NotifyBoardChanged(await GetBoardIdFromColumn(card.ColumnId));
         return CreatedAtAction(nameof(Create), new { id = card.Id }, card);
     }
 
@@ -46,8 +67,11 @@ public class CardsController : ControllerBase
         var card = await _context.Cards.FindAsync(id);
         if (card is null) return NotFound();
 
+
+        var boardId = await GetBoardIdFromColumn(card.ColumnId);
         _context.Cards.Remove(card);
         await _context.SaveChangesAsync();
+        await NotifyBoardChanged(boardId);
         return NoContent();   // 204 : succès, rien à renvoyer
     }
 
@@ -64,6 +88,7 @@ public class CardsController : ControllerBase
         card.Description = request.Description;
 
         await _context.SaveChangesAsync();
+        await NotifyBoardChanged(await GetBoardIdFromColumn(card.ColumnId));
         return NoContent();
     }
 
@@ -93,7 +118,9 @@ public class CardsController : ControllerBase
         card.Order = request.Order;
 
         await _context.SaveChangesAsync();
+        await NotifyBoardChanged(await GetBoardIdFromColumn(card.ColumnId));
         return NoContent();
     }
+
 }
 

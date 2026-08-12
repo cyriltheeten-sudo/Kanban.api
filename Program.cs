@@ -1,10 +1,11 @@
-using Microsoft.EntityFrameworkCore;
 using Kanban.Api.Data;
+using Kanban.Api.Hubs;
 using Kanban.Api.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.OpenApi.Models;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,9 +69,12 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:5173")   // l'adresse de ton front
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
+
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -83,6 +87,8 @@ app.UseAuthentication();   // « qui es-tu ? » — vérifie le jeton
 app.UseAuthorization();    // « as-tu le droit ? » — vérifie les permissions
 
 app.MapControllers();
+
+app.MapHub<KanbanHub>("/hubs/kanban");
 
 // --- Seed : un board de démo si la base est vide ---
 using (var scope = app.Services.CreateScope())
