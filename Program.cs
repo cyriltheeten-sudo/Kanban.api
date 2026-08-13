@@ -72,11 +72,13 @@ var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',')
 
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
-        policy.WithOrigins(allowedOrigins)
+    options.AddPolicy("AutoriserFront", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)  
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials()); 
+              .AllowCredentials();
+    });
 });
 
 builder.Services.AddSignalR();
