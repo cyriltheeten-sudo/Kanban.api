@@ -1,12 +1,13 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Kanban.Api.Data;
+using Kanban.Api.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Kanban.Api.Data;
-using Kanban.Api.Models;
 
 namespace Kanban.Api.Controllers;
 
@@ -28,6 +29,7 @@ public class AuthController : ControllerBase
     }
 
     // POST /api/auth/register
+    [Authorize]
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {

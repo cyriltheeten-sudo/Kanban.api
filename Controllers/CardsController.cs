@@ -5,11 +5,9 @@ using Kanban.Api.Data;
 using Kanban.Api.Models;
 using Microsoft.AspNetCore.SignalR;
 using Kanban.Api.Hubs;
+using Kanban.Api.Services;
 
 namespace Kanban.Api.Controllers;
-
-// Ce que le front envoie pour créer une carte
-public record CreateCardRequest(string Title, int ColumnId);
 
 [ApiController]
 [Route("api/[controller]")]
@@ -18,10 +16,14 @@ public class CardsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IHubContext<KanbanHub> _hub;
-    public CardsController(AppDbContext context, IHubContext<KanbanHub> hub)
+    private readonly BoardService _boardService;
+    private readonly CardService _cardServices;
+    public CardsController(AppDbContext context, IHubContext<KanbanHub> hub, CardService cardService, BoardService boardService)
     {
         _context = context;
         _hub = hub;
+        _cardServices = cardService;
+        _boardService = boardService;
     }
 
     private async Task NotifyBoardChanged(int boardId)
@@ -35,28 +37,15 @@ public class CardsController : ControllerBase
             await _hub.Clients.Group($"board-{boardId}").SendAsync("BoardChanged");
     }
 
-    private Task<int> GetBoardIdFromColumn(int columnId) =>
-    _context.Columns.Where(c => c.Id == columnId).Select(c => c.BoardId).FirstAsync();
 
     // POST /api/cards
     [HttpPost]
     public async Task<ActionResult<Card>> Create(CreateCardRequest request)
     {
-        var maxOrder = await _context.Cards
-            .Where(c => c.ColumnId == request.ColumnId)
-            .Select(c => (int?)c.Order)
-            .MaxAsync() ?? -1;
+        var card = await _cardServices.CreateCard(request);
+        if (card is null) return BadRequest();
 
-        var card = new Card
-        {
-            Title = request.Title,
-            ColumnId = request.ColumnId,
-            Order = maxOrder + 1,
-        };
-
-        _context.Cards.Add(card);
-        await _context.SaveChangesAsync();
-        await NotifyBoardChanged(await GetBoardIdFromColumn(card.ColumnId));
+        await NotifyBoardChanged(await _boardService.GetBoardIdFromColumn(card.ColumnId));
         return CreatedAtAction(nameof(Create), new { id = card.Id }, card);
     }
 
@@ -64,61 +53,45 @@ public class CardsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var card = await _context.Cards.FindAsync(id);
+        var card = await _cardServices.GetCard(id);
         if (card is null) return NotFound();
 
+        var boardId = await _boardService.GetBoardIdFromColumn(card.ColumnId);
 
-        var boardId = await GetBoardIdFromColumn(card.ColumnId);
-        _context.Cards.Remove(card);
-        await _context.SaveChangesAsync();
+        bool deleteResponse = await _cardServices.DeleteCard(card);
+        if (!deleteResponse) return NotFound();
+
         await NotifyBoardChanged(boardId);
         return NoContent();   // 204 : succès, rien à renvoyer
     }
-
-    public record UpdateCardRequest(string Title, string? Description);
 
     // PUT /api/cards/{id}
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, UpdateCardRequest request)
     {
-        var card = await _context.Cards.FindAsync(id);
+        var card = await _cardServices.GetCard(id);
         if (card is null) return NotFound();
 
-        card.Title = request.Title;
-        card.Description = request.Description;
+        var boardId = await _boardService.GetBoardIdFromColumn(card.ColumnId);
 
-        await _context.SaveChangesAsync();
-        await NotifyBoardChanged(await GetBoardIdFromColumn(card.ColumnId));
+        bool updateResponse = await _cardServices.UpdateCard(card, request);
+        if(!updateResponse) return NotFound();
+
+
+        await NotifyBoardChanged(await _boardService.GetBoardIdFromColumn(card.ColumnId));
         return NoContent();
     }
-
-    public record MoveCardRequest(int ColumnId, int Order);
 
     // PUT /api/cards/{id}/move
     [HttpPut("{id}/move")]
     public async Task<IActionResult> Move(int id, MoveCardRequest request)
     {
-        var card = await _context.Cards.FindAsync(id);
+        var card = await _cardServices.GetCard(id);
         if (card is null) return NotFound();
 
-        // 1. Close the gap in the source column: cards after it shift up by one
-        var sourceCards = await _context.Cards
-            .Where(c => c.ColumnId == card.ColumnId && c.Order > card.Order)
-            .ToListAsync();
-        foreach (var c in sourceCards) c.Order--;
+        var moveResponse = await _cardServices.MoveCard(card, request);
 
-        // 2. Make room in the target column: cards at or after the target position shift down by one
-        var targetCards = await _context.Cards
-            .Where(c => c.ColumnId == request.ColumnId && c.Order >= request.Order)
-            .ToListAsync();
-        foreach (var c in targetCards) c.Order++;
-
-        // 3. Place the card at its new column and position
-        card.ColumnId = request.ColumnId;
-        card.Order = request.Order;
-
-        await _context.SaveChangesAsync();
-        await NotifyBoardChanged(await GetBoardIdFromColumn(card.ColumnId));
+        await NotifyBoardChanged(await _boardService.GetBoardIdFromColumn(card.ColumnId));
         return NoContent();
     }
 

@@ -1,6 +1,7 @@
 using Kanban.Api.Data;
 using Kanban.Api.Hubs;
 using Kanban.Api.Models;
+using Kanban.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -19,6 +20,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.ReferenceHandler =
             System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
+builder.Services.AddScoped<CardService>();
+builder.Services.AddScoped<BoardService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
