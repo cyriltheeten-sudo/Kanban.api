@@ -34,6 +34,16 @@ public class BoardsController : ControllerBase
             await _hub.Clients.Group($"board-{boardId}").SendAsync("BoardChanged");
     }
 
+    // POST /api/boards
+    [HttpPost]
+    public async Task<ActionResult<Board>> Create(CreateBoardRequest request)
+    {
+        var board = await _boardService.CreateBoard(request);
+        if (board is null) return BadRequest();
+
+        return CreatedAtAction(nameof(Create), new { id = board.Id }, board);
+    }
+
     // GET /api/boards
     [HttpGet]
     public async Task<List<Board>> GetAll()

@@ -12,6 +12,24 @@ namespace Kanban.Api.Services
             _context = context;
         }
 
+        public async Task<Board> CreateBoard(CreateBoardRequest request)
+        {
+            var board = new Board
+            {
+                Name = request.Name,
+                Columns = new List<Column>
+                {
+                    new Column { Title = "À faire", Order = 0 },
+                    new Column { Title = "En cours", Order = 1 },
+                    new Column { Title = "Terminé", Order = 2 },
+
+                }
+            };
+            _context.Boards.Add(board);
+            await _context.SaveChangesAsync();
+            return board;
+        }
+
         public Task<int> GetBoardIdFromColumn(int columnId) =>
         _context.Columns.Where(c => c.Id == columnId).Select(c => c.BoardId).FirstAsync();
 
