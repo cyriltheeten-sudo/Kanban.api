@@ -5,22 +5,23 @@ using Kanban.Api.Data;
 using Kanban.Api.Models;
 using Microsoft.AspNetCore.SignalR;
 using Kanban.Api.Hubs;
+using Kanban.Api.Services;
 
 namespace Kanban.Api.Controllers;
-
-public record CreateColumnRequest(string Title, int BoardId);
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
 public class ColumnsController : ControllerBase
 {
-    private readonly AppDbContext _context;
     private readonly IHubContext<KanbanHub> _hub;
-    public ColumnsController(AppDbContext context, IHubContext<KanbanHub> hub)
+    private readonly BoardService _boardService;
+    private readonly ColumnService _columnService;
+    public ColumnsController(IHubContext<KanbanHub> hub, BoardService boardService, ColumnService columnService)
     {
-        _context = context;
         _hub = hub;
+        _boardService = boardService;
+        _columnService = columnService;
     }
 
     private async Task NotifyBoardChanged(int boardId)
@@ -36,20 +37,8 @@ public class ColumnsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Column>> Create(CreateColumnRequest request)
     {
-        var maxOrder = await _context.Columns
-            .Where(c => c.BoardId == request.BoardId)
-            .Select(c => (int?)c.Order)
-            .MaxAsync() ?? -1;
-
-        var column = new Column
-        {
-            Title = request.Title,
-            BoardId = request.BoardId,
-            Order = maxOrder + 1,
-        };
-
-        _context.Columns.Add(column);
-        await _context.SaveChangesAsync();
+        var column = await _columnService.CreateColumn(request);
+        if(column is null) return BadRequest();
 
         await NotifyBoardChanged(column.BoardId);
 
@@ -60,16 +49,10 @@ public class ColumnsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var column = await _context.Columns
-            .Include(c => c.Cards)  
-            .FirstOrDefaultAsync(c => c.Id == id);
+        var boardId = await _boardService.GetBoardIdFromColumn(id);
 
-        if (column is null) return NotFound();
-
-        var boardId = column.BoardId;
-
-        _context.Columns.Remove(column);
-        await _context.SaveChangesAsync();
+        bool deleteResponse = await _columnService.DeleteColumn(id);
+        if (!deleteResponse) return NotFound();
 
         await NotifyBoardChanged(boardId);
         return NoContent();

@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Kanban.Api.Data;
 using Kanban.Api.Models;
 using Microsoft.AspNetCore.SignalR;
@@ -14,15 +13,13 @@ namespace Kanban.Api.Controllers;
 [Authorize]
 public class CardsController : ControllerBase
 {
-    private readonly AppDbContext _context;
     private readonly IHubContext<KanbanHub> _hub;
     private readonly BoardService _boardService;
-    private readonly CardService _cardServices;
-    public CardsController(AppDbContext context, IHubContext<KanbanHub> hub, CardService cardService, BoardService boardService)
+    private readonly CardService _cardService;
+    public CardsController(IHubContext<KanbanHub> hub, CardService cardService, BoardService boardService)
     {
-        _context = context;
         _hub = hub;
-        _cardServices = cardService;
+        _cardService = cardService;
         _boardService = boardService;
     }
 
@@ -42,7 +39,7 @@ public class CardsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Card>> Create(CreateCardRequest request)
     {
-        var card = await _cardServices.CreateCard(request);
+        var card = await _cardService.CreateCard(request);
         if (card is null) return BadRequest();
 
         await NotifyBoardChanged(await _boardService.GetBoardIdFromColumn(card.ColumnId));
@@ -53,12 +50,12 @@ public class CardsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var card = await _cardServices.GetCard(id);
+        var card = await _cardService.GetCardById(id);
         if (card is null) return NotFound();
 
         var boardId = await _boardService.GetBoardIdFromColumn(card.ColumnId);
 
-        bool deleteResponse = await _cardServices.DeleteCard(card);
+        bool deleteResponse = await _cardService.DeleteCard(card);
         if (!deleteResponse) return NotFound();
 
         await NotifyBoardChanged(boardId);
@@ -69,12 +66,10 @@ public class CardsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, UpdateCardRequest request)
     {
-        var card = await _cardServices.GetCard(id);
+        var card = await _cardService.GetCardById(id);
         if (card is null) return NotFound();
 
-        var boardId = await _boardService.GetBoardIdFromColumn(card.ColumnId);
-
-        bool updateResponse = await _cardServices.UpdateCard(card, request);
+        bool updateResponse = await _cardService.UpdateCard(card, request);
         if(!updateResponse) return NotFound();
 
 
@@ -86,10 +81,10 @@ public class CardsController : ControllerBase
     [HttpPut("{id}/move")]
     public async Task<IActionResult> Move(int id, MoveCardRequest request)
     {
-        var card = await _cardServices.GetCard(id);
+        var card = await _cardService.GetCardById(id);
         if (card is null) return NotFound();
 
-        var moveResponse = await _cardServices.MoveCard(card, request);
+        var moveResponse = await _cardService.MoveCard(card, request);
 
         await NotifyBoardChanged(await _boardService.GetBoardIdFromColumn(card.ColumnId));
         return NoContent();

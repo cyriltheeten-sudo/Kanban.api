@@ -20,8 +20,9 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.ReferenceHandler =
             System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
-builder.Services.AddScoped<CardService>();
 builder.Services.AddScoped<BoardService>();
+builder.Services.AddScoped<ColumnService>();
+builder.Services.AddScoped<CardService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

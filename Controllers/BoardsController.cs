@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Kanban.Api.Data;
 using Kanban.Api.Models;
+using Kanban.Api.Services;
 using Microsoft.AspNetCore.SignalR;
 using Kanban.Api.Hubs;
 
@@ -14,12 +15,12 @@ namespace Kanban.Api.Controllers;
 [Authorize]
 public class BoardsController : ControllerBase
 {
-    private readonly AppDbContext _context;
     private readonly IHubContext<KanbanHub> _hub;
-    public BoardsController(AppDbContext context, IHubContext<KanbanHub> hub)
+    private readonly BoardService _boardService;
+    public BoardsController(IHubContext<KanbanHub> hub, BoardService boardService)
     {
-        _context = context;
         _hub = hub;
+        _boardService = boardService;
     }
 
     private async Task NotifyBoardChanged(int boardId)
@@ -35,35 +36,27 @@ public class BoardsController : ControllerBase
 
     // GET /api/boards
     [HttpGet]
-    public async Task<IEnumerable<Board>> GetAll()
+    public async Task<List<Board>> GetAll()
     {
-        return await _context.Boards.ToListAsync();
+        return await _boardService.GetAllBoards();
     }
 
     // GET /api/boards/id
     [HttpGet("{id}")]
     public async Task<ActionResult<Board>> GetById(int id)
     {
-        var board = await _context.Boards
-            .Include(b => b.Columns.OrderBy(c => c.Order))          
-                .ThenInclude(c => c.Cards.OrderBy(card => card.Order))  
-            .FirstOrDefaultAsync(b => b.Id == id);
-
+        var board = await _boardService.GetBoardById(id);
         if (board is null) return NotFound();
         return board;
     }
-
-    public record UpdateBoardRequest(string Name);
 
     // PUT /api/boards/{id}
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, UpdateBoardRequest request)
     {
-        var board = await _context.Boards.FindAsync(id);
-        if (board is null) return NotFound();
+        bool updateResponse = await _boardService.UpdateBoard(id, request);
+        if (!updateResponse) return NotFound();
 
-        board.Name = request.Name;
-        await _context.SaveChangesAsync();
         await NotifyBoardChanged(id);
         return NoContent();
     }

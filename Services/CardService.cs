@@ -15,30 +15,24 @@ namespace Kanban.Api.Services
 
         public async Task<Card?> CreateCard(CreateCardRequest request)
         {
-            try
+            var maxOrder = await _context.Cards
+            .Where(c => c.ColumnId == request.ColumnId)
+            .Select(c => (int?)c.Order)
+            .MaxAsync() ?? -1;
+
+            var card = new Card
             {
-                var maxOrder = await _context.Cards
-                .Where(c => c.ColumnId == request.ColumnId)
-                .Select(c => (int?)c.Order)
-                .MaxAsync() ?? -1;
+                Title = request.Title,
+                ColumnId = request.ColumnId,
+                Order = maxOrder + 1,
+            };
 
-                var card = new Card
-                {
-                    Title = request.Title,
-                    ColumnId = request.ColumnId,
-                    Order = maxOrder + 1,
-                };
-
-                _context.Cards.Add(card);
-                await _context.SaveChangesAsync();
-                return card;
-            }
-            catch {
-                return null;
-            }
+            _context.Cards.Add(card);
+            await _context.SaveChangesAsync();
+            return card;          
         }
 
-        public async Task<Card?> GetCard(int id)
+        public async Task<Card?> GetCardById(int id)
         {
             var card = await _context.Cards.FindAsync(id);
             if (card is null) return null;
