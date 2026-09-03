@@ -62,7 +62,7 @@ public class CardsController : ControllerBase
         if (!deleteResponse) return NotFound();
 
         await NotifyBoardChanged(boardId);
-        return NoContent();   // 204 : succès, rien à renvoyer
+        return NoContent();
     }
 
     // PUT /api/cards/{id}

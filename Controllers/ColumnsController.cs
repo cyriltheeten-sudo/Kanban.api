@@ -8,7 +8,6 @@ using Kanban.Api.Hubs;
 
 namespace Kanban.Api.Controllers;
 
-// Ce que le front envoie pour créer une colonne (pas un Column complet)
 public record CreateColumnRequest(string Title, int BoardId);
 
 [ApiController]
@@ -37,7 +36,6 @@ public class ColumnsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Column>> Create(CreateColumnRequest request)
     {
-        // calcule l'ordre : à la fin des colonnes existantes du board
         var maxOrder = await _context.Columns
             .Where(c => c.BoardId == request.BoardId)
             .Select(c => (int?)c.Order)
@@ -63,7 +61,7 @@ public class ColumnsController : ControllerBase
     public async Task<IActionResult> Delete(int id)
     {
         var column = await _context.Columns
-            .Include(c => c.Cards)      // on charge les cartes pour qu'EF les supprime avec
+            .Include(c => c.Cards)  
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (column is null) return NotFound();

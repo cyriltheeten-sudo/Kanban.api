@@ -25,7 +25,6 @@ builder.Services.AddScoped<BoardService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    // Déclare le schéma de sécurité "Bearer"
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -36,7 +35,6 @@ builder.Services.AddSwaggerGen(options =>
         Description = "Colle ton jeton JWT ici (sans écrire 'Bearer').",
     });
 
-    // Applique ce schéma à toutes les routes protégées
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -93,14 +91,13 @@ app.UseSwaggerUI();
 
 app.UseCors("AutoriserFront");
 
-app.UseAuthentication();   // « qui es-tu ? » — vérifie le jeton
-app.UseAuthorization();    // « as-tu le droit ? » — vérifie les permissions
+app.UseAuthentication();   
+app.UseAuthorization();   
 
 app.MapControllers();
 
 app.MapHub<KanbanHub>("/hubs/kanban");
 
-// --- Seed : un board de démo si la base est vide ---
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

@@ -11,7 +11,6 @@ using System.Text;
 
 namespace Kanban.Api.Controllers;
 
-// Les données reçues du front (on ne reçoit pas un User complet)
 public record RegisterRequest(string Email, string Password, string Name);
 public record LoginRequest(string Email, string Password);
 
@@ -33,13 +32,11 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest request)
     {
-        // email déjà pris ?
         if (await _context.Users.AnyAsync(u => u.Email == request.Email))
             return BadRequest("Cet email est déjà utilisé.");
 
         var user = new User { Email = request.Email, Name = request.Name };
 
-        // on hache le mot de passe avant de le stocker
         var hasher = new PasswordHasher<User>();
         user.PasswordHash = hasher.HashPassword(user, request.Password);
 
@@ -57,13 +54,11 @@ public class AuthController : ControllerBase
         if (user is null)
             return Unauthorized("Email ou mot de passe incorrect.");
 
-        // on compare le mot de passe tapé au haché stocké
         var hasher = new PasswordHasher<User>();
         var resultat = hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
         if (resultat == PasswordVerificationResult.Failed)
             return Unauthorized("Email ou mot de passe incorrect.");
 
-        // identité OK → on fabrique le jeton
         var token = GenerateToken(user);
         return Ok(new { token, user = new { user.Id, user.Email, user.Name } });
     }
@@ -73,7 +68,6 @@ public class AuthController : ControllerBase
         var jwtKey = _config["Jwt:Key"]!;
         var jwtIssuer = _config["Jwt:Issuer"]!;
 
-        // les "claims" : les infos que le jeton transporte
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -87,7 +81,7 @@ public class AuthController : ControllerBase
         var token = new JwtSecurityToken(
             issuer: jwtIssuer,
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(2),   // le jeton expire au bout de 2h
+            expires: DateTime.UtcNow.AddHours(2), 
             signingCredentials: creds
         );
 

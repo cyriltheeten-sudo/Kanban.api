@@ -6,8 +6,8 @@ public class Column
     public string Title { get; set; } = "";
     public int Order { get; set; }
 
-    public int BoardId { get; set; }      // clé étrangère
-    public Board? Board { get; set; }      // navigation inverse
+    public int BoardId { get; set; }     
+    public Board? Board { get; set; }
 
     public List<Card> Cards { get; set; } = new();
 }

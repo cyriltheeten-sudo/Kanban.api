@@ -33,20 +33,20 @@ public class BoardsController : ControllerBase
             await _hub.Clients.Group($"board-{boardId}").SendAsync("BoardChanged");
     }
 
-    // GET /api/boards → tous les boards (sans le détail)
+    // GET /api/boards
     [HttpGet]
     public async Task<IEnumerable<Board>> GetAll()
     {
         return await _context.Boards.ToListAsync();
     }
 
-    // GET /api/boards/1 → un board AVEC ses colonnes et leurs cartes
+    // GET /api/boards/id
     [HttpGet("{id}")]
     public async Task<ActionResult<Board>> GetById(int id)
     {
         var board = await _context.Boards
-            .Include(b => b.Columns.OrderBy(c => c.Order))          // colonnes triées
-                .ThenInclude(c => c.Cards.OrderBy(card => card.Order))  // cartes triées
+            .Include(b => b.Columns.OrderBy(c => c.Order))          
+                .ThenInclude(c => c.Cards.OrderBy(card => card.Order))  
             .FirstOrDefaultAsync(b => b.Id == id);
 
         if (board is null) return NotFound();
