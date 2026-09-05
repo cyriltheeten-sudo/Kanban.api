@@ -23,6 +23,7 @@ builder.Services.AddControllers()
 builder.Services.AddScoped<BoardService>();
 builder.Services.AddScoped<ColumnService>();
 builder.Services.AddScoped<CardService>();
+builder.Services.AddScoped<TemplateService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -103,26 +104,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
-
-    if (!db.Boards.Any())
-    {
-        var board = new Board
-        {
-            Name = "Mon premier projet",
-            Columns = new List<Column>
-            {
-                new Column { Title = "À faire", Order = 0, Cards = new List<Card>
-                {
-                    new Card { Title = "Configurer le projet", Order = 0 },
-                    new Card { Title = "Écrire le modèle", Order = 1 },
-                }},
-                new Column { Title = "En cours", Order = 1 },
-                new Column { Title = "Terminé", Order = 2 },
-            }
-        };
-        db.Boards.Add(board);
-        db.SaveChanges();
-    }
+    DbSeeder.Seed(db);
 }
 
 app.Run();

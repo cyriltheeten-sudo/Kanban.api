@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Kanban.Api.Data;
 using Kanban.Api.Models;
 using Kanban.Api.Services;
 using Microsoft.AspNetCore.SignalR;

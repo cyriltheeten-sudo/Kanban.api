@@ -12,4 +12,6 @@ public class AppDbContext : DbContext
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<Column> Columns => Set<Column>();
     public DbSet<Card> Cards => Set<Card>();
+    public DbSet<Template> Templates => Set<Template>();
+    public DbSet<TemplateColumn> TemplateColumns => Set<TemplateColumn>();
 }
