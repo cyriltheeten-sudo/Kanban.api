@@ -68,4 +68,15 @@ public class BoardsController : ControllerBase
         await NotifyBoardChanged(id);
         return NoContent();
     }
+
+
+    // DELETE /api/boards/{id}
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        bool deleteResponse = await _boardService.DeleteBoard(id);
+        if (!deleteResponse) return NotFound();
+
+        return NoContent(); 
+    }
 }

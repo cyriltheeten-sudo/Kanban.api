@@ -61,5 +61,15 @@ namespace Kanban.Api.Services
             return true;
         }
 
+        public async Task<bool> DeleteBoard(int id)
+        {
+            var board = await _context.Boards.FindAsync(id);
+            if (board is null) return false;
+
+            _context.Boards.Remove(board);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }
 }
