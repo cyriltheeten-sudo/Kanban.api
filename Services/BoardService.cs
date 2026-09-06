@@ -1,5 +1,6 @@
 ﻿using Kanban.Api.Data;
 using Kanban.Api.Models;
+using Kanban.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kanban.Api.Services
@@ -7,23 +8,26 @@ namespace Kanban.Api.Services
     public class BoardService
     {
         private readonly AppDbContext _context;
-        public BoardService(AppDbContext context)
+        private readonly TemplateService _templateService;
+        public BoardService(AppDbContext context, TemplateService templateService)
         {
             _context = context;
+            _templateService = templateService;
         }
 
-        public async Task<Board> CreateBoard(CreateBoardRequest request)
+        public async Task<Board?> CreateBoard(CreateBoardRequest request)
         {
+            var template = await _templateService.GetTemplateById(request.TemplateId);
+
+            if (template is null) return null;
+
             var board = new Board
             {
                 Name = request.Name,
-                Columns = new List<Column>
-                {
-                    new Column { Title = "À faire", Order = 0 },
-                    new Column { Title = "En cours", Order = 1 },
-                    new Column { Title = "Terminé", Order = 2 },
-
-                }
+                Columns = template.TemplateColumns
+                .Select(tc => new Column { Title = tc.Title, Order = tc.Order })
+                .ToList()
+            
             };
             _context.Boards.Add(board);
             await _context.SaveChangesAsync();

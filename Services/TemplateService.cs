@@ -20,5 +20,15 @@ namespace Kanban.Api.Services
                 .Where(t => t.OwnerId == null || t.OwnerId == userId)
                 .ToListAsync();
         }
+
+        public async Task<Template?> GetTemplateById(int id)
+        {
+            var template = await _context.Templates
+                .Include(t => t.TemplateColumns.OrderBy(c => c.Order))
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (template is null) return null;
+
+            return template;
+        }
     }
 }
