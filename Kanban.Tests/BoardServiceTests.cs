@@ -27,7 +27,7 @@ public class BoardServiceTests
         await context.SaveChangesAsync();
 
         var service = new BoardService(context, new TemplateService(context));
-        var board = await service.CreateBoard(new CreateBoardRequest("Mon projet", 1));
+        var board = await service.CreateBoard(new CreateBoardRequest("Mon projet", 1), 1);
 
         Assert.NotNull(board);
         Assert.Equal("Mon projet", board!.Name);
@@ -38,12 +38,30 @@ public class BoardServiceTests
     }
 
     [Fact]
+    public async Task GetAllBoards_ReturnsOnlyOwnBoards()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.Boards.AddRange(
+            new Board { Id = 1, Name = "Board User 1", OwnerId = 1 },
+            new Board { Id = 2, Name = "Board User 1 bis", OwnerId = 1 },
+            new Board { Id = 3, Name = "Board User 2", OwnerId = 2 }
+        );
+        await context.SaveChangesAsync();
+
+        var service = new BoardService(context, new TemplateService(context));
+        var result = await service.GetAllBoards(1);
+
+        Assert.Equal(2, result.Count);
+        Assert.All(result, b => Assert.Equal(1, b.OwnerId));
+    }
+
+    [Fact]
     public async Task CreateBoard_WithUnknownTemplate_ReturnsNull()
     {
         using var context = TestDbContextFactory.Create();
         var service = new BoardService(context, new TemplateService(context));
 
-        var board = await service.CreateBoard(new CreateBoardRequest("Mon projet", 999));
+        var board = await service.CreateBoard(new CreateBoardRequest("Mon projet", 999), 1);
 
         Assert.Null(board);
     }

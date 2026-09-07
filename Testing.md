@@ -2,7 +2,7 @@
 
 ## Objectif
 
-Ce document décrit la stratégie de tests unitaires de la couche service de l'API Gemboard. Les tests vérifient la logique métier (création, modification, suppression, déplacement, filtrage) indépendamment de l'infrastructure (base de données réelle, HTTP, temps réel).
+Ce document décrit la stratégie de tests unitaires de la couche service de l'API Gemboard. Les tests vérifient la logique métier (création, modification, suppression, déplacement, filtrage) et le **cloisonnement des données par utilisateur**, indépendamment de l'infrastructure (base de données réelle, HTTP, temps réel).
 
 ## Approche
 
@@ -13,7 +13,7 @@ Ce document décrit la stratégie de tests unitaires de la couche service de l'A
 
 ## Périmètre
 
-Les tests portent sur la **logique métier des services**, là où un défaut aurait un impact fonctionnel :
+Les tests portent sur la **logique métier des services**, là où un défaut aurait un impact fonctionnel ou de sécurité :
 
 | Service | Méthode | Ce qui est vérifié |
 |---|---|---|
@@ -24,16 +24,27 @@ Les tests portent sur la **logique métier des services**, là où un défaut au
 | CardService | MoveCard (autre colonne) | La carte change de colonne, les ordres sont cohérents |
 | ColumnService | CreateColumn | La colonne est placée en fin de tableau (Order = max + 1) |
 | ColumnService | DeleteColumn | La colonne (et ses cartes en cascade) est supprimée |
-| BoardService | CreateBoard | Le tableau est créé avec les colonnes issues du modèle choisi |
+| BoardService | CreateBoard | Le tableau est créé avec les colonnes issues du modèle choisi, et rattaché à son propriétaire |
 | BoardService | CreateBoard (modèle inexistant) | Retourne null (aucun tableau créé) |
+| BoardService | GetAllBoards | **Cloisonnement : un utilisateur ne récupère que ses propres tableaux, jamais ceux des autres** |
 | BoardService | UpdateBoard | Le nom du tableau est mis à jour |
 | BoardService | DeleteBoard | Le tableau est supprimé |
 | TemplateService | GetTemplatesForUser | Filtre correct : modèles système (OwnerId null) + modèles de l'utilisateur, en excluant ceux des autres utilisateurs |
+| TemplateService | GetTemplateById | Le modèle est retourné avec ses colonnes (ou null si inexistant) |
+
+## Un focus sur la sécurité
+
+Au-delà du fonctionnel, les tests couvrent le **cloisonnement des données par utilisateur** — un point sensible :
+
+- **Tableaux** : `GetAllBoards` ne renvoie que les tableaux dont l'utilisateur est propriétaire (`OwnerId`). Un test dédié vérifie qu'un utilisateur ne voit pas les tableaux d'un autre.
+- **Modèles** : `GetTemplatesForUser` ne renvoie que les modèles système (partagés) et les modèles personnels de l'utilisateur, en excluant ceux des autres.
+
+L'identité de l'utilisateur provient toujours du token JWT (côté serveur), jamais des données envoyées par le client.
 
 ## Ce qui n'est pas couvert (et pourquoi)
 
 - **Contrôleurs** : ils ne portent pas de logique métier (validation HTTP + délégation au service). Leur couverture relèverait de tests d'intégration, hors périmètre de ces tests unitaires.
-- **Temps réel (SignalR)** : préoccupation d'infrastructure, testée manuellement.
+- **Temps réel (SignalR)** : préoccupation d'infrastructure, testée manuellement (avec deux clients).
 - **Accès EF pur** (ex. GetById simple) : peu de logique propre, faible valeur ajoutée d'un test unitaire.
 
 ## Organisation des fichiers
@@ -49,15 +60,15 @@ Kanban.Tests/
 └── TemplateServiceTests.cs
 ```
 
-Les anciens fichiers `MoveCardTests.cs` et `DeleteCardTest.cs` sont regroupés dans `CardServiceTests.cs` pour centraliser tous les tests du `CardService` au même endroit (ils peuvent être supprimés une fois leur contenu repris).
-
 ## Exécution
 
 ```bash
-dotnet test
+dotnet test Kanban.Tests/Kanban.Tests.csproj
 ```
 
 Tous les tests doivent passer au vert. En cas d'échec, le message xUnit indique la valeur attendue et la valeur obtenue, permettant d'identifier la régression.
+
+> Note : lancer les tests nécessite que l'API ne soit pas déjà en cours d'exécution (le fichier exécutable serait verrouillé). Arrêter l'API (`Ctrl+C`) avant de lancer les tests.
 
 ## Principe directeur
 
