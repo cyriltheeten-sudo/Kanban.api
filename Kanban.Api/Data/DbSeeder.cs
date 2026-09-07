@@ -6,22 +6,6 @@ namespace Kanban.Api.Data
     {
         public static void Seed(AppDbContext db)
         {
-            if (!db.Boards.Any())
-            {
-                var board = new Board
-                {
-                    Name = "Mon premier projet",
-                    Columns = new List<Column>
-                    {
-                        new Column { Title = "À faire", Order = 0 },
-                        new Column { Title = "En cours", Order = 1 },
-                        new Column { Title = "Terminé", Order = 2 },
-                    }
-                };
-                db.Boards.Add(board);
-                db.SaveChanges();
-            }
-
             if (!db.Templates.Any())
             {
                 var templates = new List<Template>

@@ -4,7 +4,7 @@ using Kanban.Api.Models;
 using Kanban.Api.Services;
 using Microsoft.AspNetCore.SignalR;
 using Kanban.Api.Hubs;
-
+using System.Security.Claims;
 
 namespace Kanban.Api.Controllers;
 
@@ -36,7 +36,8 @@ public class BoardsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Board>> Create(CreateBoardRequest request)
     {
-        var board = await _boardService.CreateBoard(request);
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var board = await _boardService.CreateBoard(request, userId);
         if (board is null) return BadRequest();
 
         return CreatedAtAction(nameof(Create), new { id = board.Id }, board);
@@ -46,7 +47,8 @@ public class BoardsController : ControllerBase
     [HttpGet]
     public async Task<List<Board>> GetAll()
     {
-        return await _boardService.GetAllBoards();
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        return await _boardService.GetAllBoards(userId);
     }
 
     // GET /api/boards/id

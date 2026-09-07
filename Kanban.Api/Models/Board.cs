@@ -6,4 +6,6 @@ public class Board
     public string Name { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public List<Column> Columns { get; set; } = new();
+    public int OwnerId { get; set; }
+    public User? Owner { get; set; }
 }

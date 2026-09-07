@@ -15,20 +15,20 @@ namespace Kanban.Api.Services
             _templateService = templateService;
         }
 
-        public async Task<Board?> CreateBoard(CreateBoardRequest request)
+        public async Task<Board?> CreateBoard(CreateBoardRequest request, int userId)
         {
             var template = await _templateService.GetTemplateById(request.TemplateId);
-
             if (template is null) return null;
 
             var board = new Board
             {
                 Name = request.Name,
+                OwnerId = userId,         
                 Columns = template.TemplateColumns
-                .Select(tc => new Column { Title = tc.Title, Order = tc.Order })
-                .ToList()
-            
+                    .Select(tc => new Column { Title = tc.Title, Order = tc.Order })
+                    .ToList()
             };
+
             _context.Boards.Add(board);
             await _context.SaveChangesAsync();
             return board;
@@ -37,9 +37,11 @@ namespace Kanban.Api.Services
         public Task<int> GetBoardIdFromColumn(int columnId) =>
         _context.Columns.Where(c => c.Id == columnId).Select(c => c.BoardId).FirstAsync();
 
-        public async Task<List<Board>> GetAllBoards()
+        public async Task<List<Board>> GetAllBoards(int userId)
         {
-            return await _context.Boards.ToListAsync();
+            return await _context.Boards
+                .Where(b => b.OwnerId == userId)
+                .ToListAsync();
         }
 
         public async Task<Board?> GetBoardById(int id)
