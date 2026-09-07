@@ -44,29 +44,34 @@ namespace Kanban.Api.Services
                 .ToListAsync();
         }
 
-        public async Task<Board?> GetBoardById(int id)
+        public async Task<Board?> GetBoardById(int id, int userId)
         {
             var board = await _context.Boards
             .Include(b => b.Columns.OrderBy(c => c.Order))
                 .ThenInclude(c => c.Cards.OrderBy(card => card.Order))
             .FirstOrDefaultAsync(b => b.Id == id);
+
+            if (board is null || board.OwnerId != userId) return null;
+
             return board;
         }
 
-        public async Task<bool> UpdateBoard(int id, UpdateBoardRequest request)
+        public async Task<bool> UpdateBoard(int id, UpdateBoardRequest request, int userId)
         {
             var board = await _context.Boards.FindAsync(id);
             if (board is null) return false;
+            if (board.OwnerId != userId) return false;
 
             board.Name = request.Name;
             await _context.SaveChangesAsync();
             return true;
         }
 
-        public async Task<bool> DeleteBoard(int id)
+        public async Task<bool> DeleteBoard(int id, int userId)
         {
             var board = await _context.Boards.FindAsync(id);
             if (board is null) return false;
+            if (board.OwnerId != userId) return false;
 
             _context.Boards.Remove(board);
             await _context.SaveChangesAsync();

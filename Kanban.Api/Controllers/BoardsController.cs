@@ -55,7 +55,8 @@ public class BoardsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<Board>> GetById(int id)
     {
-        var board = await _boardService.GetBoardById(id);
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var board = await _boardService.GetBoardById(id, userId);
         if (board is null) return NotFound();
         return board;
     }
@@ -64,7 +65,8 @@ public class BoardsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, UpdateBoardRequest request)
     {
-        bool updateResponse = await _boardService.UpdateBoard(id, request);
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        bool updateResponse = await _boardService.UpdateBoard(id, request, userId);
         if (!updateResponse) return NotFound();
 
         await NotifyBoardChanged(id);
@@ -76,7 +78,9 @@ public class BoardsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        bool deleteResponse = await _boardService.DeleteBoard(id);
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        bool deleteResponse = await _boardService.DeleteBoard(id, userId);
         if (!deleteResponse) return NotFound();
 
         return NoContent(); 
