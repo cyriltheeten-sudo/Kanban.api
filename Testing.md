@@ -2,7 +2,7 @@
 
 ## Objectif
 
-Ce document décrit la stratégie de tests unitaires de la couche service de l'API Gemboard. Les tests vérifient la logique métier (création, modification, suppression, déplacement, filtrage) et le **cloisonnement des données par utilisateur**, indépendamment de l'infrastructure (base de données réelle, HTTP, temps réel).
+Ce document décrit la stratégie de tests unitaires de la couche service de l'API Gemboard. Les tests vérifient la logique métier (création, modification, suppression, déplacement, filtrage) et le **cloisonnement des données par utilisateur** (autorisation au niveau des objets), indépendamment de l'infrastructure (base de données réelle, HTTP, temps réel).
 
 ## Approche
 
@@ -24,36 +24,35 @@ Les tests portent sur la **logique métier des services**, là où un défaut au
 | CardService | MoveCard (autre colonne) | La carte change de colonne, les ordres sont cohérents |
 | ColumnService | CreateColumn | La colonne est placée en fin de tableau (Order = max + 1) |
 | ColumnService | DeleteColumn | La colonne (et ses cartes en cascade) est supprimée |
-| BoardService | CreateBoard | Le tableau est créé avec les colonnes issues du modèle choisi, et rattaché à son propriétaire |
+| BoardService | CreateBoard | Le tableau est créé avec les colonnes du modèle choisi, et rattaché à son propriétaire |
 | BoardService | CreateBoard (modèle inexistant) | Retourne null (aucun tableau créé) |
-| BoardService | GetAllBoards | **Cloisonnement : un utilisateur ne récupère que ses propres tableaux, jamais ceux des autres** |
-| BoardService | UpdateBoard | Le nom du tableau est mis à jour |
-| BoardService | DeleteBoard | Le tableau est supprimé |
-| TemplateService | GetTemplatesForUser | Filtre correct : modèles système (OwnerId null) + modèles de l'utilisateur, en excluant ceux des autres utilisateurs |
+| BoardService | GetAllBoards | Cloisonnement : un utilisateur ne récupère que ses propres tableaux |
+| BoardService | GetBoardById | Le tableau est retourné uniquement si l'utilisateur en est propriétaire (sinon null) |
+| BoardService | UpdateBoard | Renommage autorisé au seul propriétaire ; refusé sinon (tableau inchangé) |
+| BoardService | DeleteBoard | Suppression autorisée au seul propriétaire ; refusée sinon (tableau conservé) |
+| TemplateService | GetTemplatesForUser | Filtre correct : modèles système + modèles de l'utilisateur, en excluant ceux des autres |
 | TemplateService | GetTemplateById | Le modèle est retourné avec ses colonnes (ou null si inexistant) |
 
 ## Un focus sur la sécurité
 
-Au-delà du fonctionnel, les tests couvrent le **cloisonnement des données par utilisateur** — un point sensible :
+Au-delà du fonctionnel, les tests couvrent l'**autorisation au niveau des objets** — un point sensible :
 
-- **Tableaux** : `GetAllBoards` ne renvoie que les tableaux dont l'utilisateur est propriétaire (`OwnerId`). Un test dédié vérifie qu'un utilisateur ne voit pas les tableaux d'un autre.
+- **Tableaux** : non seulement la liste est filtrée (`GetAllBoards`), mais **chaque action individuelle** (ouvrir, modifier, supprimer un tableau par son id) vérifie que l'utilisateur en est propriétaire. Des tests dédiés confirment qu'un utilisateur ne peut ni voir, ni modifier, ni supprimer le tableau d'un autre.
 - **Modèles** : `GetTemplatesForUser` ne renvoie que les modèles système (partagés) et les modèles personnels de l'utilisateur, en excluant ceux des autres.
 
 L'identité de l'utilisateur provient toujours du token JWT (côté serveur), jamais des données envoyées par le client.
 
 ## Ce qui n'est pas couvert (et pourquoi)
 
-- **Contrôleurs** : ils ne portent pas de logique métier (validation HTTP + délégation au service). Leur couverture relèverait de tests d'intégration, hors périmètre de ces tests unitaires.
+- **Contrôleurs et authentification** : la validation HTTP, la génération du token et les attributs d'autorisation (`[Authorize]`) relèvent du pipeline ASP.NET Core. Ils sont validés manuellement ; leur couverture automatisée relèverait de **tests d'intégration** (instance de l'API en mémoire + vraies requêtes HTTP), une évolution possible.
+- **Garde-fou sur cartes et colonnes** : le contrôle de propriété au niveau des cartes et colonnes est prévu (approche centralisée), non encore couvert.
 - **Temps réel (SignalR)** : préoccupation d'infrastructure, testée manuellement (avec deux clients).
-- **Accès EF pur** (ex. GetById simple) : peu de logique propre, faible valeur ajoutée d'un test unitaire.
 
 ## Organisation des fichiers
 
-Un fichier de tests par service testé, dans le projet `Kanban.Tests` :
-
 ```
 Kanban.Tests/
-├── TestDbContextFactory.cs      (helper commun : création d'une base InMemory isolée)
+├── TestDbContextFactory.cs      (helper commun : base InMemory isolée)
 ├── CardServiceTests.cs
 ├── ColumnServiceTests.cs
 ├── BoardServiceTests.cs
@@ -66,10 +65,10 @@ Kanban.Tests/
 dotnet test Kanban.Tests/Kanban.Tests.csproj
 ```
 
-Tous les tests doivent passer au vert. En cas d'échec, le message xUnit indique la valeur attendue et la valeur obtenue, permettant d'identifier la régression.
+Tous les tests doivent passer au vert. En cas d'échec, le message xUnit indique la valeur attendue et la valeur obtenue.
 
 > Note : lancer les tests nécessite que l'API ne soit pas déjà en cours d'exécution (le fichier exécutable serait verrouillé). Arrêter l'API (`Ctrl+C`) avant de lancer les tests.
 
 ## Principe directeur
 
-Un bon test vérifie l'**effet réel** de l'opération (l'état de la base après action), pas seulement la valeur de retour de la méthode. Un test doit pouvoir **échouer** si la logique métier est cassée — c'est sa raison d'être.
+Un bon test vérifie l'**effet réel** de l'opération (l'état de la base après action), pas seulement la valeur de retour. Un test doit pouvoir **échouer** si la logique métier ou une règle de sécurité est cassée — c'est sa raison d'être.
