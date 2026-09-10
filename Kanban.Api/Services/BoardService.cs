@@ -25,7 +25,7 @@ namespace Kanban.Api.Services
                 Name = request.Name,
                 OwnerId = userId,         
                 Columns = template.TemplateColumns
-                    .Select(tc => new Column { Title = tc.Title, Order = tc.Order })
+                    .Select(tc => new Column { Title = tc.Title, Description = tc.Description, Order = tc.Order })
                     .ToList()
             };
 

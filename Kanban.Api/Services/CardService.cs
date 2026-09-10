@@ -45,7 +45,6 @@ namespace Kanban.Api.Services
             if (card is null) return false;
 
             card.Title = request.Title;
-            card.Description = request.Description;
 
             await _context.SaveChangesAsync();
             return true;

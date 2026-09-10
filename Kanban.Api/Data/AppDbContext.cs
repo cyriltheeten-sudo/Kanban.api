@@ -12,6 +12,16 @@ public class AppDbContext : DbContext
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<Column> Columns => Set<Column>();
     public DbSet<Card> Cards => Set<Card>();
+    public DbSet<CardEntry> CardEntries => Set<CardEntry>();
     public DbSet<Template> Templates => Set<Template>();
     public DbSet<TemplateColumn> TemplateColumns => Set<TemplateColumn>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CardEntry>()
+            .HasOne(e => e.Column)
+            .WithMany()
+            .HasForeignKey(e => e.ColumnId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
 }
