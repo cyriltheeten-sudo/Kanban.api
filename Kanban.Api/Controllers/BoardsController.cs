@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Kanban.Api.Dtos;
+using Kanban.Api.Hubs;
 using Kanban.Api.Models;
 using Kanban.Api.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Kanban.Api.Hubs;
 using System.Security.Claims;
 
 namespace Kanban.Api.Controllers;
@@ -53,7 +54,7 @@ public class BoardsController : ControllerBase
 
     // GET /api/boards/id
     [HttpGet("{id}")]
-    public async Task<ActionResult<Board>> GetById(int id)
+    public async Task<ActionResult<BoardDto>> GetById(int id)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var board = await _boardService.GetBoardById(id, userId);

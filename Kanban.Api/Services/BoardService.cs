@@ -1,4 +1,5 @@
 ﻿using Kanban.Api.Data;
+using Kanban.Api.Dtos;
 using Kanban.Api.Models;
 using Kanban.Api.Services;
 using Microsoft.EntityFrameworkCore;
@@ -44,16 +45,41 @@ namespace Kanban.Api.Services
                 .ToListAsync();
         }
 
-        public async Task<Board?> GetBoardById(int id, int userId)
+        public async Task<BoardDto?> GetBoardById(int id, int userId)
         {
             var board = await _context.Boards
-            .Include(b => b.Columns.OrderBy(c => c.Order))
-                .ThenInclude(c => c.Cards.OrderBy(card => card.Order))
-            .FirstOrDefaultAsync(b => b.Id == id);
+                .Include(b => b.Columns.OrderBy(c => c.Order))
+                    .ThenInclude(c => c.Cards.OrderBy(card => card.Order))
+                        .ThenInclude(card => card.Entries)
+                .FirstOrDefaultAsync(b => b.Id == id);
 
             if (board is null || board.OwnerId != userId) return null;
 
-            return board;
+            return new BoardDto
+            {
+                Id = board.Id,
+                Name = board.Name,
+                Columns = board.Columns.Select(c => new ColumnDto
+                {
+                    Id = c.Id,
+                    Title = c.Title,
+                    Description = c.Description,
+                    Order = c.Order,
+                    Cards = c.Cards.Select(card => new CardDto
+                    {
+                        Id = card.Id,
+                        Title = card.Title,
+                        Order = card.Order,
+                        Entries = card.Entries.Select(e => new CardEntryDto
+                        {
+                            Id = e.Id,
+                            ColumnId = e.ColumnId,
+                            Content = e.Content,
+                            UpdatedAt = e.UpdatedAt
+                        }).ToList()
+                    }).ToList()
+                }).ToList()
+            };
         }
 
         public async Task<bool> UpdateBoard(int id, UpdateBoardRequest request, int userId)
