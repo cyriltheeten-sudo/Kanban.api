@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Kanban.Api.Hubs;
 using Kanban.Api.Models;
-using Microsoft.AspNetCore.SignalR;
-using Kanban.Api.Hubs;
 using Kanban.Api.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using System.Security.Claims;
 
 namespace Kanban.Api.Controllers;
 
@@ -86,6 +87,21 @@ public class CardsController : ControllerBase
         var moveResponse = await _cardService.MoveCard(card, request);
 
         await NotifyBoardChanged(await _boardService.GetBoardIdFromColumn(card.ColumnId));
+        return NoContent();
+    }
+
+    [HttpPut("{cardId}/entries/{columnId}")]
+    public async Task<IActionResult> UpsertEntry(int cardId, int columnId, UpsertCardEntryRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        var boardId = await _boardService.GetBoardIdFromColumn(columnId);
+        var board = await _boardService.GetBoardById(boardId, userId);
+        if (board is null) return NotFound();
+
+        await _cardService.UpsertEntry(cardId, columnId, request);
+
+        await NotifyBoardChanged(boardId);
         return NoContent();
     }
 

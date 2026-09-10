@@ -82,5 +82,31 @@ namespace Kanban.Api.Services
             return card;
         }
 
+        public async Task<bool> UpsertEntry(int cardId, int columnId, UpsertCardEntryRequest request)
+        {
+            var entry = await _context.CardEntries
+                .FirstOrDefaultAsync(e => e.CardId == cardId && e.ColumnId == columnId);
+
+            if (entry is null)
+            {
+                entry = new CardEntry
+                {
+                    CardId = cardId,
+                    ColumnId = columnId,
+                    Content = request.Content,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.CardEntries.Add(entry);
+            }
+            else
+            {
+                entry.Content = request.Content;
+                entry.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }
 }
