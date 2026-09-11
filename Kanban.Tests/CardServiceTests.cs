@@ -39,7 +39,7 @@ public class CardServiceTests
     }
 
     [Fact]
-    public async Task UpdateCard_ChangesTitleAndDescription()
+    public async Task UpdateCard_ChangesTitle()
     {
         using var context = TestDbContextFactory.Create();
         var card = new Card { Id = 1, ColumnId = 10, Order = 0, Title = "Ancien titre" };
@@ -47,14 +47,13 @@ public class CardServiceTests
         await context.SaveChangesAsync();
 
         var service = new CardService(context);
-        var result = await service.UpdateCard(card, new UpdateCardRequest("Nouveau titre", "Une description"));
+        var result = await service.UpdateCard(card, new UpdateCardRequest("Nouveau titre"));
 
         Assert.True(result);
 
         context.ChangeTracker.Clear();
         var updated = await context.Cards.FindAsync(1);
         Assert.Equal("Nouveau titre", updated!.Title);
-        Assert.Equal("Une description", updated.Description);
     }
 
     [Fact]
@@ -120,5 +119,57 @@ public class CardServiceTests
         Assert.Equal(1, cardA!.Order);
         Assert.Equal(2, cardB!.Order);
         Assert.Empty(cardsInColumn11);
+    }
+
+    [Fact]
+    public async Task UpsertEntry_WhenNoEntryExists_CreatesEntry()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.Cards.Add(new Card { Id = 1, ColumnId = 10, Order = 0, Title = "Carte A" });
+        await context.SaveChangesAsync();
+
+        var service = new CardService(context);
+        var result = await service.UpsertEntry(1, 10, new UpsertCardEntryRequest { Content = "Mon objectif" });
+
+        Assert.True(result);
+
+        context.ChangeTracker.Clear();
+        var entries = await context.CardEntries.Where(e => e.CardId == 1).ToListAsync();
+        Assert.Single(entries);
+        Assert.Equal(10, entries[0].ColumnId);
+        Assert.Equal("Mon objectif", entries[0].Content);
+    }
+
+    [Fact]
+    public async Task UpsertEntry_WhenEntryExists_UpdatesWithoutDuplicating()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.Cards.Add(new Card { Id = 1, ColumnId = 10, Order = 0, Title = "Carte A" });
+        context.CardEntries.Add(new CardEntry { Id = 1, CardId = 1, ColumnId = 10, Content = "Version 1" });
+        await context.SaveChangesAsync();
+
+        var service = new CardService(context);
+        await service.UpsertEntry(1, 10, new UpsertCardEntryRequest { Content = "Version 2" });
+
+        context.ChangeTracker.Clear();
+        var entries = await context.CardEntries.Where(e => e.CardId == 1).ToListAsync();
+        Assert.Single(entries);                          // pas de doublon
+        Assert.Equal("Version 2", entries[0].Content);   // bien mis à jour
+    }
+
+    [Fact]
+    public async Task UpsertEntry_DifferentColumns_CreatesSeparateEntries()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.Cards.Add(new Card { Id = 1, ColumnId = 10, Order = 0, Title = "Carte A" });
+        await context.SaveChangesAsync();
+
+        var service = new CardService(context);
+        await service.UpsertEntry(1, 10, new UpsertCardEntryRequest { Content = "Étape 1" });
+        await service.UpsertEntry(1, 11, new UpsertCardEntryRequest { Content = "Étape 2" });
+
+        context.ChangeTracker.Clear();
+        var entries = await context.CardEntries.Where(e => e.CardId == 1).ToListAsync();
+        Assert.Equal(2, entries.Count);
     }
 }

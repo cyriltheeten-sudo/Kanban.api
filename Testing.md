@@ -18,10 +18,13 @@ Les tests portent sur la **logique métier des services**, là où un défaut au
 | Service | Méthode | Ce qui est vérifié |
 |---|---|---|
 | CardService | CreateCard | La carte est placée en fin de colonne (Order = max + 1) |
-| CardService | UpdateCard | Le titre et la description sont mis à jour |
+| CardService | UpdateCard | Le titre est mis à jour |
 | CardService | DeleteCard | La carte est retirée de la base |
 | CardService | MoveCard (même colonne) | Les ordres sont recalculés correctement |
 | CardService | MoveCard (autre colonne) | La carte change de colonne, les ordres sont cohérents |
+| CardService | UpsertEntry (nouvelle entrée) | Une entrée est créée pour le couple carte+colonne |
+| CardService | UpsertEntry (entrée existante) | Le contenu est mis à jour, sans créer de doublon |
+| CardService | UpsertEntry (colonnes différentes) | Deux étapes distinctes d'une même carte donnent deux entrées |
 | ColumnService | CreateColumn | La colonne est placée en fin de tableau (Order = max + 1) |
 | ColumnService | DeleteColumn | La colonne (et ses cartes en cascade) est supprimée |
 | BoardService | CreateBoard | Le tableau est créé avec les colonnes du modèle choisi, et rattaché à son propriétaire |
@@ -46,6 +49,8 @@ L'identité de l'utilisateur provient toujours du token JWT (côté serveur), ja
 
 - **Contrôleurs et authentification** : la validation HTTP, la génération du token et les attributs d'autorisation (`[Authorize]`) relèvent du pipeline ASP.NET Core. Ils sont validés manuellement ; leur couverture automatisée relèverait de **tests d'intégration** (instance de l'API en mémoire + vraies requêtes HTTP), une évolution possible.
 - **Garde-fou sur cartes et colonnes** : le contrôle de propriété au niveau des cartes et colonnes est prévu (approche centralisée), non encore couvert.
+- **Suppression d'entrée sur contenu vide** : le comportement « vider une étape supprime son entrée » n'est pas encore implémenté (l'upsert enregistre actuellement un contenu vide) ; il sera couvert quand cette règle sera ajoutée.
+- **Cascade des entrées** : la base InMemory utilisée en test ne fait pas respecter les clés étrangères ni les règles de cascade (`Cascade` côté carte, `Restrict` côté colonne). Ces comportements relèvent du vrai moteur PostgreSQL et sont validés au niveau de la migration, pas des tests unitaires.
 - **Temps réel (SignalR)** : préoccupation d'infrastructure, testée manuellement (avec deux clients).
 
 ## Organisation des fichiers
