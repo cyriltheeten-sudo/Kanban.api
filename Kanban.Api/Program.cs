@@ -1,12 +1,13 @@
 using Kanban.Api.Data;
 using Kanban.Api.Hubs;
-using Kanban.Api.Models;
 using Kanban.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,6 +71,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+});
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',')
     ?? new[] { "http://localhost:5173" };
 
@@ -88,13 +111,16 @@ builder.Services.AddSignalR();
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseCors("AutoriserFront");
 
 app.UseAuthentication();   
-app.UseAuthorization();   
+app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllers();
 
