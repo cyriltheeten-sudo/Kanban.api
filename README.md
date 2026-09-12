@@ -1,90 +1,90 @@
 # GemBoard — API
 
-> Un outil minimaliste pour se cadrer des étapes et suivre sa progression. Chaque colonne est une **étape guidée**, et une carte **accumule son contenu** au fil de son parcours — elle devient l'historique lisible de sa propre progression.
+> A minimalist tool to frame your steps and track your progress. Each column is a **guided step**, and a card **accumulates its content** as it moves through the workflow — it becomes the readable history of its own progress.
 
-API back-end de GemBoard, développée en **ASP.NET Core / C#**. Elle gère l'authentification, les tableaux, colonnes, cartes, les entrées de progression par étape, les modèles de projet, et la synchronisation temps réel.
+Back-end API for GemBoard, built with **ASP.NET Core / C#**. It handles authentication, boards, columns, cards, per-step progress entries, project templates, and real-time synchronisation.
 
-🔗 **Démo en ligne** : https://kanban-cyril14.vercel.app
-🔗 **Portfolio** : https://portfolio-cyril14.vercel.app
-🔗 **Dépôt front (React)** : https://github.com/cyriltheeten-sudo/kanban-front
+🔗 **Live demo:** https://kanban-cyril14.vercel.app
+🔗 **Portfolio:** https://portfolio-cyril14.vercel.app
+🔗 **Frontend repository (React):** https://github.com/cyriltheeten-sudo/kanban-front
 
 ---
 
-## Fonctionnalités
+## Features
 
-- **Authentification** par JWT (mots de passe hachés). La connexion est protégée par un **rate limiting** (5 tentatives/min par IP) contre le brute-force.
-- **Tableaux / colonnes / cartes** : CRUD complet, avec réorganisation par glisser-déposer persistée côté serveur.
-- **Entrées de carte par étape** : chaque carte porte un contenu distinct par colonne (objectif, ressources, journal, bilan…), créé à la demande et mis à jour via un *upsert* — le cœur de l'expérience « progression guidée ».
-- **Modèles de projet** : création d'un tableau à partir d'un modèle de colonnes prédéfini, chaque étape portant sa propre description-guide (modèles système partagés + base prête pour des modèles personnels).
-- **Temps réel** : synchronisation entre clients via SignalR (WebSockets) — les changements d'un utilisateur apparaissent chez les autres sans rechargement.
+- **Authentication** via JWT (hashed passwords). Login is protected by **rate limiting** (5 attempts/min per IP) against brute-force.
+- **Boards / columns / cards:** full CRUD, with drag-and-drop reordering persisted server-side.
+- **Per-step card entries:** each card holds a distinct entry per column (objective, resources, journal, outcome…), created on demand and updated via an *upsert* — the core of the "guided progress" experience.
+- **Project templates:** create a board from a predefined set of step-columns, each carrying its own guidance description (shared system templates + a base ready for per-user personal templates).
+- **Real-time:** synchronisation across clients via SignalR (WebSockets) — one user's changes appear for the others without a reload.
 
-## Stack technique
+## Tech stack
 
-| Couche | Technologies |
+| Layer | Technologies |
 |---|---|
-| Back-end | C#, ASP.NET Core, API REST |
-| Accès aux données | Entity Framework Core |
-| Base de données | PostgreSQL (hébergée sur Neon) |
-| Temps réel | SignalR |
-| Authentification | JWT |
-| Conteneurisation | Docker |
-| Déploiement | Render |
-| Tests | xUnit (base InMemory) |
+| Back-end | C#, ASP.NET Core, REST API |
+| Data access | Entity Framework Core |
+| Database | PostgreSQL (hosted on Neon) |
+| Real-time | SignalR |
+| Authentication | JWT |
+| Containerisation | Docker |
+| Deployment | Render |
+| Testing | xUnit (in-memory database) |
 
 ## Architecture
 
-L'API suit une **séparation en couches** :
+The API follows a **layered separation**:
 
-- **Controllers** — porte d'entrée HTTP : valident la requête, vérifient les autorisations, délèguent au service, renvoient le bon code de statut.
-- **Services** (`CardService`, `ColumnService`, `BoardService`, `TemplateService`) — la logique métier, isolée et testable (principe de responsabilité unique).
-- **DTOs** — des objets de lecture dédiés : l'API ne sérialise jamais les entités brutes, elle façonne exactement ce que le client reçoit (et évite les cycles de références).
-- **Models** — les entités et les contrats de requête.
-- **Data** — le `DbContext` Entity Framework et le seed des données de référence.
+- **Controllers** — HTTP entry point: validate the request, check authorisation, delegate to the service, return the right status code.
+- **Services** (`CardService`, `ColumnService`, `BoardService`, `TemplateService`) — business logic, isolated and testable (single-responsibility principle).
+- **DTOs** — dedicated read models: the API never serialises raw entities, it shapes exactly what the client receives (and avoids reference cycles).
+- **Models** — entities and request contracts.
+- **Data** — the Entity Framework `DbContext` and the seeding of reference data.
 
-Quelques points soignés :
+A few things I paid particular attention to:
 
-- **Autorisation au niveau des objets** : chaque action mutante vérifie la propriété de la ressource **avant** d'agir (via un contrôle centralisé `IsBoardOwnedBy`, en remontant carte → colonne → tableau → propriétaire). Un accès non autorisé renvoie `404` sans révéler l'existence de la ressource.
-- **Identité stateless** : l'utilisateur est toujours extrait du token JWT côté serveur, jamais des données envoyées par le client.
-- **Secrets hors du dépôt** : chaîne de connexion et clé JWT via User Secrets en local, variables d'environnement en production.
+- **Object-level authorisation:** every mutating action verifies ownership **before** acting (through a centralised `IsBoardOwnedBy` check, walking card → column → board → owner). Unauthorised access returns `404` without revealing whether the resource exists.
+- **Stateless identity:** the user is always resolved from the JWT server-side, never from client-supplied data.
+- **Secrets out of the repo:** connection string and JWT key via User Secrets locally, environment variables in production.
 
-## Tests
+## Testing
 
-Le projet dispose de **30 tests unitaires (xUnit)** couvrant la logique métier de la couche service : création / mise à jour / suppression / déplacement de cartes, upsert des entrées de progression, création de tableaux depuis un modèle, filtrage des modèles système/personnels, et **cloisonnement des données par utilisateur** (un utilisateur ne peut pas accéder aux tableaux d'un autre).
+The project has **30 xUnit unit tests** covering the service layer's business logic: create / update / delete / move cards, upsert of progress entries, board creation from a template, system/personal template filtering, and **per-user data isolation** (a user cannot access another user's boards).
 
-Voir **[TESTING.md](./TESTING.md)** pour la stratégie de tests détaillée.
+See **[TESTING.md](./TESTING.md)** for the detailed testing strategy.
 
 ```bash
 dotnet test Kanban.Tests/Kanban.Tests.csproj
 ```
 
-## Lancer le projet en local
+## Running locally
 
-Prérequis : le SDK .NET 8 et une base PostgreSQL (ou un compte Neon).
+Prerequisites: the .NET 8 SDK and a PostgreSQL database (or a Neon account).
 
-1. Configurer la chaîne de connexion et la clé JWT via les **User Secrets** (jamais en clair dans le code) :
+1. Configure the connection string and JWT key via **User Secrets** (never in plain text in the code):
    ```bash
    cd Kanban.Api
    dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=...;Database=...;Username=...;Password=...;SSL Mode=Require"
-   dotnet user-secrets set "Jwt:Key" "votre-cle-secrete"
+   dotnet user-secrets set "Jwt:Key" "your-secret-key"
    dotnet user-secrets set "Jwt:Issuer" "Kanban.Api"
    ```
-2. Appliquer les migrations et lancer :
+2. Apply the migrations and run:
    ```bash
    dotnet ef database update
    dotnet run
    ```
-3. L'API démarre et Swagger est disponible pour explorer les endpoints.
+3. The API starts and Swagger is available to explore the endpoints.
 
-## Structure du dépôt
+## Repository structure
 
 ```
 .
-├── Kanban.Api/        # le projet API (contrôleurs, services, DTOs, modèles, données)
-├── Kanban.Tests/      # les tests unitaires (xUnit)
-├── Kanban.Api.sln     # la solution
-└── TESTING.md         # stratégie de tests
+├── Kanban.Api/        # the API project (controllers, services, DTOs, models, data)
+├── Kanban.Tests/      # the unit tests (xUnit)
+├── Kanban.Api.sln     # the solution
+└── TESTING.md         # testing strategy
 ```
 
 ---
 
-*Projet personnel développé dans le cadre d'une montée en compétences full stack .NET / React.*
+*Personal project built as part of a full-stack .NET / React upskilling effort.*
