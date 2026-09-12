@@ -179,4 +179,31 @@ public class BoardServiceTests
 
         Assert.False(result);
     }
+
+
+    [Fact]
+    public async Task IsBoardOwnedBy_WhenOwner_ReturnsTrue()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.Boards.Add(new Board { Id = 1, Name = "Mon board", OwnerId = 1 });
+        await context.SaveChangesAsync();
+
+        var service = new BoardService(context, new TemplateService(context));
+        var result = await service.IsBoardOwnedBy(1, 1);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task IsBoardOwnedBy_WhenNotOwner_ReturnsFalse()
+    {
+        using var context = TestDbContextFactory.Create();
+        context.Boards.Add(new Board { Id = 1, Name = "Board de l'user 2", OwnerId = 2 });
+        await context.SaveChangesAsync();
+
+        var service = new BoardService(context, new TemplateService(context));
+        var result = await service.IsBoardOwnedBy(1, 1);
+
+        Assert.False(result);
+    }
 }

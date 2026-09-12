@@ -38,6 +38,9 @@ namespace Kanban.Api.Services
         public Task<int> GetBoardIdFromColumn(int columnId) =>
         _context.Columns.Where(c => c.Id == columnId).Select(c => c.BoardId).FirstAsync();
 
+        public Task<bool> IsBoardOwnedBy(int boardId, int userId) =>
+        _context.Boards.AnyAsync(b => b.Id == boardId && b.OwnerId == userId);
+
         public async Task<List<Board>> GetAllBoards(int userId)
         {
             return await _context.Boards

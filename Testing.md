@@ -15,32 +15,34 @@ Ce document décrit la stratégie de tests unitaires de la couche service de l'A
 
 Les tests portent sur la **logique métier des services**, là où un défaut aurait un impact fonctionnel ou de sécurité :
 
-| Service | Méthode | Ce qui est vérifié |
-|---|---|---|
-| CardService | CreateCard | La carte est placée en fin de colonne (Order = max + 1) |
-| CardService | UpdateCard | Le titre est mis à jour |
-| CardService | DeleteCard | La carte est retirée de la base |
-| CardService | MoveCard (même colonne) | Les ordres sont recalculés correctement |
-| CardService | MoveCard (autre colonne) | La carte change de colonne, les ordres sont cohérents |
-| CardService | UpsertEntry (nouvelle entrée) | Une entrée est créée pour le couple carte+colonne |
-| CardService | UpsertEntry (entrée existante) | Le contenu est mis à jour, sans créer de doublon |
-| CardService | UpsertEntry (colonnes différentes) | Deux étapes distinctes d'une même carte donnent deux entrées |
-| ColumnService | CreateColumn | La colonne est placée en fin de tableau (Order = max + 1) |
-| ColumnService | DeleteColumn | La colonne (et ses cartes en cascade) est supprimée |
-| BoardService | CreateBoard | Le tableau est créé avec les colonnes du modèle choisi, et rattaché à son propriétaire |
-| BoardService | CreateBoard (modèle inexistant) | Retourne null (aucun tableau créé) |
-| BoardService | GetAllBoards | Cloisonnement : un utilisateur ne récupère que ses propres tableaux |
-| BoardService | GetBoardById | Le tableau est retourné uniquement si l'utilisateur en est propriétaire (sinon null) |
-| BoardService | UpdateBoard | Renommage autorisé au seul propriétaire ; refusé sinon (tableau inchangé) |
-| BoardService | DeleteBoard | Suppression autorisée au seul propriétaire ; refusée sinon (tableau conservé) |
-| TemplateService | GetTemplatesForUser | Filtre correct : modèles système + modèles de l'utilisateur, en excluant ceux des autres |
-| TemplateService | GetTemplateById | Le modèle est retourné avec ses colonnes (ou null si inexistant) |
+| Service         | Méthode                            | Ce qui est vérifié                                                                                    |
+| --------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| CardService     | CreateCard                         | La carte est placée en fin de colonne (Order = max + 1)                                               |
+| CardService     | UpdateCard                         | Le titre est mis à jour                                                                               |
+| CardService     | DeleteCard                         | La carte est retirée de la base                                                                       |
+| CardService     | MoveCard (même colonne)            | Les ordres sont recalculés correctement                                                               |
+| CardService     | MoveCard (autre colonne)           | La carte change de colonne, les ordres sont cohérents                                                 |
+| CardService     | UpsertEntry (nouvelle entrée)      | Une entrée est créée pour le couple carte+colonne                                                     |
+| CardService     | UpsertEntry (entrée existante)     | Le contenu est mis à jour, sans créer de doublon                                                      |
+| CardService     | UpsertEntry (colonnes différentes) | Deux étapes distinctes d'une même carte donnent deux entrées                                          |
+| ColumnService   | CreateColumn                       | La colonne est placée en fin de tableau (Order = max + 1)                                             |
+| ColumnService   | DeleteColumn                       | La colonne (et ses cartes en cascade) est supprimée                                                   |
+| BoardService    | CreateBoard                        | Le tableau est créé avec les colonnes du modèle choisi, et rattaché à son propriétaire                |
+| BoardService    | CreateBoard (modèle inexistant)    | Retourne null (aucun tableau créé)                                                                    |
+| BoardService    | GetAllBoards                       | Cloisonnement : un utilisateur ne récupère que ses propres tableaux                                   |
+| BoardService    | GetBoardById                       | Le tableau est retourné uniquement si l'utilisateur en est propriétaire (sinon null)                  |
+| BoardService    | UpdateBoard                        | Renommage autorisé au seul propriétaire ; refusé sinon (tableau inchangé)                             |
+| BoardService    | DeleteBoard                        | Suppression autorisée au seul propriétaire ; refusée sinon (tableau conservé)                         |
+| BoardService    | IsBoardOwnedBy                     | Renvoie vrai si le board appartient à l'utilisateur, faux sinon (brique du garde-fou cartes/colonnes) |
+| TemplateService | GetTemplatesForUser                | Filtre correct : modèles système + modèles de l'utilisateur, en excluant ceux des autres              |
+| TemplateService | GetTemplateById                    | Le modèle est retourné avec ses colonnes (ou null si inexistant)                                      |
 
 ## Un focus sur la sécurité
 
 Au-delà du fonctionnel, les tests couvrent l'**autorisation au niveau des objets** — un point sensible :
 
 - **Tableaux** : non seulement la liste est filtrée (`GetAllBoards`), mais **chaque action individuelle** (ouvrir, modifier, supprimer un tableau par son id) vérifie que l'utilisateur en est propriétaire. Des tests dédiés confirment qu'un utilisateur ne peut ni voir, ni modifier, ni supprimer le tableau d'un autre.
+- **Cartes et colonnes** : le contrôle de propriété est **implémenté** au niveau des contrôleurs (méthode centralisée `BoardService.IsBoardOwnedBy`). Chaque action de carte (créer, modifier, supprimer, déplacer, écrire une entrée) et de colonne (créer, supprimer) remonte à son board et vérifie que l'utilisateur en est propriétaire **avant** d'agir ; sinon elle renvoie `404 Not Found` (sans divulguer l'existence de la ressource). Ce contrôle a été validé manuellement (tentative d'accès croisé entre deux comptes → `404`) ; sa **couverture par des tests automatisés reste à écrire** (voir « Ce qui n'est pas couvert »).
 - **Modèles** : `GetTemplatesForUser` ne renvoie que les modèles système (partagés) et les modèles personnels de l'utilisateur, en excluant ceux des autres.
 
 L'identité de l'utilisateur provient toujours du token JWT (côté serveur), jamais des données envoyées par le client.
@@ -48,7 +50,7 @@ L'identité de l'utilisateur provient toujours du token JWT (côté serveur), ja
 ## Ce qui n'est pas couvert (et pourquoi)
 
 - **Contrôleurs et authentification** : la validation HTTP, la génération du token et les attributs d'autorisation (`[Authorize]`) relèvent du pipeline ASP.NET Core. Ils sont validés manuellement ; leur couverture automatisée relèverait de **tests d'intégration** (instance de l'API en mémoire + vraies requêtes HTTP), une évolution possible.
-- **Garde-fou sur cartes et colonnes** : le contrôle de propriété au niveau des cartes et colonnes est prévu (approche centralisée), non encore couvert.
+- **Garde-fou de propriété sur cartes et colonnes (tests)** : le contrôle est implémenté et validé manuellement (voir « Un focus sur la sécurité »), mais comme il vit au niveau des contrôleurs (remontée carte → colonne → board → propriétaire), sa vérification automatisée relève de **tests d'intégration** plutôt que de tests unitaires de service. À ajouter.
 - **Suppression d'entrée sur contenu vide** : le comportement « vider une étape supprime son entrée » n'est pas encore implémenté (l'upsert enregistre actuellement un contenu vide) ; il sera couvert quand cette règle sera ajoutée.
 - **Cascade des entrées** : la base InMemory utilisée en test ne fait pas respecter les clés étrangères ni les règles de cascade (`Cascade` côté carte, `Restrict` côté colonne). Ces comportements relèvent du vrai moteur PostgreSQL et sont validés au niveau de la migration, pas des tests unitaires.
 - **Temps réel (SignalR)** : préoccupation d'infrastructure, testée manuellement (avec deux clients).

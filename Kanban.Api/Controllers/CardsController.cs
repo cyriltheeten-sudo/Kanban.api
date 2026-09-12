@@ -39,10 +39,15 @@ public class CardsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Card>> Create(CreateCardRequest request)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        var boardId = await _boardService.GetBoardIdFromColumn(request.ColumnId);
+        if (!await _boardService.IsBoardOwnedBy(boardId, userId)) return NotFound();
+
         var card = await _cardService.CreateCard(request);
         if (card is null) return BadRequest();
 
-        await NotifyBoardChanged(await _boardService.GetBoardIdFromColumn(card.ColumnId));
+        await NotifyBoardChanged(boardId);
         return CreatedAtAction(nameof(Create), new { id = card.Id }, card);
     }
 
@@ -50,14 +55,15 @@ public class CardsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
         var card = await _cardService.GetCardById(id);
         if (card is null) return NotFound();
 
         var boardId = await _boardService.GetBoardIdFromColumn(card.ColumnId);
+        if (!await _boardService.IsBoardOwnedBy(boardId, userId)) return NotFound();
 
-        bool deleteResponse = await _cardService.DeleteCard(card);
-        if (!deleteResponse) return NotFound();
-
+        await _cardService.DeleteCard(card);
         await NotifyBoardChanged(boardId);
         return NoContent();
     }
@@ -66,14 +72,16 @@ public class CardsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, UpdateCardRequest request)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
         var card = await _cardService.GetCardById(id);
         if (card is null) return NotFound();
 
-        bool updateResponse = await _cardService.UpdateCard(card, request);
-        if(!updateResponse) return NotFound();
+        var boardId = await _boardService.GetBoardIdFromColumn(card.ColumnId);
+        if (!await _boardService.IsBoardOwnedBy(boardId, userId)) return NotFound();
 
-
-        await NotifyBoardChanged(await _boardService.GetBoardIdFromColumn(card.ColumnId));
+        await _cardService.UpdateCard(card, request);
+        await NotifyBoardChanged(boardId);
         return NoContent();
     }
 
@@ -81,12 +89,16 @@ public class CardsController : ControllerBase
     [HttpPut("{id}/move")]
     public async Task<IActionResult> Move(int id, MoveCardRequest request)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
         var card = await _cardService.GetCardById(id);
         if (card is null) return NotFound();
 
-        var moveResponse = await _cardService.MoveCard(card, request);
+        var boardId = await _boardService.GetBoardIdFromColumn(card.ColumnId);
+        if (!await _boardService.IsBoardOwnedBy(boardId, userId)) return NotFound();
 
-        await NotifyBoardChanged(await _boardService.GetBoardIdFromColumn(card.ColumnId));
+        await _cardService.MoveCard(card, request);
+        await NotifyBoardChanged(boardId);
         return NoContent();
     }
 
@@ -96,8 +108,7 @@ public class CardsController : ControllerBase
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
         var boardId = await _boardService.GetBoardIdFromColumn(columnId);
-        var board = await _boardService.GetBoardById(boardId, userId);
-        if (board is null) return NotFound();
+        if (!await _boardService.IsBoardOwnedBy(boardId, userId)) return NotFound();
 
         await _cardService.UpsertEntry(cardId, columnId, request);
 
@@ -106,4 +117,3 @@ public class CardsController : ControllerBase
     }
 
 }
-

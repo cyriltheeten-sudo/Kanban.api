@@ -4,6 +4,7 @@ using Kanban.Api.Models;
 using Microsoft.AspNetCore.SignalR;
 using Kanban.Api.Hubs;
 using Kanban.Api.Services;
+using System.Security.Claims;
 
 namespace Kanban.Api.Controllers;
 
@@ -35,11 +36,14 @@ public class ColumnsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Column>> Create(CreateColumnRequest request)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+        if (!await _boardService.IsBoardOwnedBy(request.BoardId, userId)) return NotFound();
+
         var column = await _columnService.CreateColumn(request);
-        if(column is null) return BadRequest();
+        if (column is null) return BadRequest();
 
         await NotifyBoardChanged(column.BoardId);
-
         return CreatedAtAction(nameof(Create), new { id = column.Id }, column);
     }
 
@@ -47,7 +51,10 @@ public class ColumnsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
         var boardId = await _boardService.GetBoardIdFromColumn(id);
+        if (!await _boardService.IsBoardOwnedBy(boardId, userId)) return NotFound();
 
         bool deleteResponse = await _columnService.DeleteColumn(id);
         if (!deleteResponse) return NotFound();
