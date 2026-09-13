@@ -6,7 +6,7 @@ Back-end API for GemBoard, built with **ASP.NET Core / C#**. It handles authenti
 
 🔗 **Live demo:** https://kanban-cyril14.vercel.app
 🔗 **Portfolio:** https://portfolio-cyril14.vercel.app
-🔗 **Frontend repository (React):** https://github.com/cyriltheeten-sudo/kanban-front
+🔗 **Frontend repository (React):** https://github.com/cyriltheeten-sudo/Kanban
 
 ---
 
