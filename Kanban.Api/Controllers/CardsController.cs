@@ -97,6 +97,9 @@ public class CardsController : ControllerBase
         var boardId = await _boardService.GetBoardIdFromColumn(card.ColumnId);
         if (!await _boardService.IsBoardOwnedBy(boardId, userId)) return NotFound();
 
+        var targetBoardId = await _boardService.GetBoardIdFromColumn(request.ColumnId);
+        if (!await _boardService.IsBoardOwnedBy(targetBoardId, userId)) return NotFound();
+
         await _cardService.MoveCard(card, request);
         await NotifyBoardChanged(boardId);
         return NoContent();
@@ -109,6 +112,12 @@ public class CardsController : ControllerBase
 
         var boardId = await _boardService.GetBoardIdFromColumn(columnId);
         if (!await _boardService.IsBoardOwnedBy(boardId, userId)) return NotFound();
+
+        var card = await _cardService.GetCardById(cardId);
+        if (card is null) return NotFound();
+
+        var cardBoardId = await _boardService.GetBoardIdFromColumn(card.ColumnId);
+        if (cardBoardId != boardId) return NotFound();
 
         await _cardService.UpsertEntry(cardId, columnId, request);
 

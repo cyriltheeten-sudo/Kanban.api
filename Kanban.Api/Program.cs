@@ -35,7 +35,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Colle ton jeton JWT ici (sans écrire 'Bearer').",
+        Description = "Colle ton jeton JWT ici (sans Ã©crire 'Bearer').",
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -69,6 +69,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         };
+
+        // A WebSocket client can't send an Authorization header,
+        // so for the SignalR hub the token is read from the query string instead.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    context.HttpContext.Request.Path.StartsWithSegments("/hubs/kanban"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddRateLimiter(options =>
@@ -79,7 +95,7 @@ builder.Services.AddRateLimiter(options =>
     {
         context.HttpContext.Response.Headers.RetryAfter = "60";
         await context.HttpContext.Response.WriteAsJsonAsync(
-            new { message = "Trop de tentatives de connexion. Réessaie dans une minute." },
+            new { message = "Trop de tentatives de connexion. RÃ©essaie dans une minute." },
             cancellationToken);
     };
 
