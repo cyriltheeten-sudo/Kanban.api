@@ -153,8 +153,19 @@ app.MapHub<KanbanHub>("/hubs/kanban");
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+
+    // The "Testing" environment swaps the relational provider for EF Core's
+    // InMemory provider (see CustomWebApplicationFactory), which doesn't support Migrate().
+    if (app.Environment.IsEnvironment("Testing"))
+        db.Database.EnsureCreated();
+    else
+        db.Database.Migrate();
+
     DbSeeder.Seed(db);
 }
 
 app.Run();
+
+// Makes the top-level Program class public so WebApplicationFactory<Program>
+// can use it from the test project.
+public partial class Program { }
