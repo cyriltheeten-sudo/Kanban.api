@@ -49,7 +49,7 @@ A few things I paid particular attention to:
 
 ## Testing
 
-The project has **30 xUnit unit tests** covering the service layer's business logic: create / update / delete / move cards, upsert of progress entries, board creation from a template, system/personal template filtering, and **per-user data isolation** (a user cannot access another user's boards).
+The project has **35 xUnit tests**: 30 unit tests covering the service layer's business logic (create / update / delete / move cards, upsert of progress entries, board creation from a template, system/personal template filtering, per-user data isolation), plus 5 **integration tests** that run the real HTTP pipeline (`WebApplicationFactory`, real JWTs) to verify cross-user authorization at the controller level — including regression tests for two IDOR fixes (moving a card into another user's column, writing an entry onto another user's card).
 
 See **[TESTING.md](./TESTING.md)** for the detailed testing strategy.
 
