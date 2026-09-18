@@ -57,6 +57,16 @@ See **[TESTING.md](./TESTING.md)** for the detailed testing strategy.
 dotnet test Kanban.Tests/Kanban.Tests.csproj
 ```
 
+## CI/CD
+
+A GitHub Actions workflow (`.github/workflows/ci-cd.yml`) runs on every push and pull request targeting `main`:
+
+1. **Build & test** — restores, builds, and runs the full xUnit suite.
+2. **Docker image builds** — validates that the production `Dockerfile` still builds.
+3. **Deploy** — on a push to `main`, once the previous jobs pass, triggers a Render [Deploy Hook](https://render.com/docs/deploy-hooks) to roll out the new version. This step is skipped on pull requests.
+
+The deploy step requires a repository secret `RENDER_DEPLOY_HOOK_URL` (Render service → Settings → Deploy Hook). Render's own auto-deploy-on-push should be disabled for this service so deploys only happen after CI passes.
+
 ## Running locally
 
 Prerequisites: the .NET 8 SDK and a PostgreSQL database (or a Neon account).
