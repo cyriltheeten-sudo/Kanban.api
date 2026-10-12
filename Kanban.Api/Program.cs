@@ -137,14 +137,17 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseCors("AutoriserFront");
 
+app.UseRateLimiter();
 app.UseAuthentication();   
 app.UseAuthorization();
-app.UseRateLimiter();
 
 app.MapControllers();
 
